@@ -174,6 +174,9 @@ function main() {
       d)
         debug="true"
         ;;
+      *)
+        usage
+        ;;
       :)
         echo "Option -"$OPTARG" requires an arguemnt." >&2
         usage
