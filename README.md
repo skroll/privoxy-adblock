@@ -9,6 +9,7 @@ This script is modified to work in an OS X environment and does not require root
 
 Usage
 -----
+By default, this script fetches the easylist script and installs it into `/usr/local/etc/privoxy`. If that is not appropriate for your system, parameters can be passed to control the behavior of the script.
 
     $ privoxy-adblock.sh [-d] [-p <privoxy config dir>] [-u <url1>] [-u <url2>]...
 
