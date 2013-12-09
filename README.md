@@ -12,11 +12,11 @@ Usage
 
     $ privoxy-adblock.sh [-d] [-p <privoxy config dir>] [-u <url1>] [-u <url2>]...
 
-| Switch/Parameter        | Description                            |
-| :---------------------: | -------------------------------------- |
-| -d                      | Turn on debugging                      |
-| -p &lt;privoxy path&gt; | Stuff                                  |
-| -u &lt;url&gt;          | Downloads/converts adblock filter list |
+| Switch/Parameter        | Description                             |
+| :---------------------: | --------------------------------------- |
+| -d                      | Turn on debugging                       |
+| -p &lt;privoxy path&gt; | Path to privoxy configuration directory |
+| -u &lt;url&gt;          | Downloads/converts adblock filter list  |
 
 The script supports the passing of multiple URLs, the output of the converted adblock filter lists will be [basename].script.action and [basename].script.filter.
 
