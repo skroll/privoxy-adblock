@@ -18,7 +18,7 @@ Usage
 | -p &lt;privoxy path&gt; | Path to privoxy configuration directory |
 | -u &lt;url&gt;          | Downloads/converts adblock filter list  |
 
-The script supports the passing of multiple URLs, the output of the converted adblock filter lists will be [basename].script.action and [basename].script.filter.
+The script supports the passing of multiple URLs, the output of the converted adblock filter lists will be `[basename].script.action` and `[basename].script.filter`.
 
 Once the files have been created, they must be added to the privoxy configuration. For example:
 
