@@ -27,3 +27,10 @@ Once the files have been created, they must be added to the privoxy configuratio
 
 Once the file is added, rerunning the script with the same parameters will automatically update the privoxy filters.
 
+Environment Variables
+---------------------
+
+| Environment Variable    | Description                             | Default |
+| :---------------------: | --------------------------------------- | :-----: |
+| SEDCMD                  | The command used to invoke sed          | sed     |
+
