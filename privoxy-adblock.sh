@@ -163,7 +163,7 @@ function main() {
   trap 'logger -t $0 -i -- $USER : $BASH_COMMAND' ERR  #log errors regardless
 
   privoxydir=$defaultprivoxydir
-  urls=$defaulturls
+  urls=( "${defaulturls[@]}" )
   while getopts "dp:u:" opt; do
     case "${opt}" in
       p)
