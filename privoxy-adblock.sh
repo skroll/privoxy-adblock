@@ -148,7 +148,7 @@ function usage() {
 function main() {
   pidfile="$(pidfilename)"
 
-  tempfile="$(mktemp -t j)"
+  tempfile="$(mktemp -t j.XXX)"
   tempdir="$(dirname $tempfile)"
   rm ${tempfile}
 
