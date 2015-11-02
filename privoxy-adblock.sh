@@ -98,7 +98,7 @@ function doconvert() {
     [ "$(grep -E '^.*\[Adblock.*\].*$' ${file})" == "" ] && echo "The list recieved from ${url} isn't an AdblockPlus list. Skipped" && continue
 
     echo "Creating actionfile for ${list} ..."
-    echo -e "{ +block{${list}} }" > ${actionfile}
+    echo "{ +block{${list}} }" > ${actionfile}
     $sedcmd '/^!.*/d;1,1 d;/^@@.*/d;/\$.*/d;/#/d;s/\./\\./g;s/\?/\\?/g;s/\*/.*/g;s/(/\\(/g;s/)/\\)/g;s/\[/\\[/g;s/\]/\\]/g;s/\^/[\/\&:\?=_]/g;s/^||/\./g;s/^|/^/g;s/|$/\$/g;/|/d' ${file} >> ${actionfile}
 
     echo "... creating filterfile for ${list} ..."
@@ -196,4 +196,3 @@ function main() {
 main $@
 
 exit 0
-
