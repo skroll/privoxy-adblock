@@ -1,8 +1,9 @@
-#!/bin/bash
+#!/bin/sh
 
 sedcmd=${SEDCMD:-sed}
 defaultprivoxydir="/usr/local/etc/privoxy"
-defaulturls=("https://easylist-downloads.adblockplus.org/easylist.txt")
+defaulturl="https://easylist-downloads.adblockplus.org/easylist.txt"
+
 
 #===  FUNCTION  ================================================================
 #          NAME:  cleanup
@@ -10,9 +11,9 @@ defaulturls=("https://easylist-downloads.adblockplus.org/easylist.txt")
 #    PARAMETERS:  none
 #       RETURNS:  none
 #===============================================================================
-function cleanup() {
+cleanup() {
   trap - INT TERM EXIT
-  [[ -f "${pidfile}" ]] && rm "$pidfile"
+  [ -f "${pidfile}" ] && rm "$pidfile"
   exit
 }
 
@@ -22,13 +23,13 @@ function cleanup() {
 #    PARAMETERS:  pid file path
 #       RETURNS:  boolean
 #===============================================================================
-function isrunning() {
+isrunning() {
   pidfile="${1}"
-  [[ ! -f "${pidfile}" ]] && return 1  #pid file is nonexistent
-  procpid=$(<"${pidfile}")
-  [[ -z "${procpid}" ]] && return 1  #pid file contains no pid
+  [ ! -f "${pidfile}" ] && return 1  #pid file is nonexistent
+  procpid=$(cat "${pidfile}")
+  [ -z "${procpid}" ] && return 1  #pid file contains no pid
   # check process list for pid existence and is an instance of this script
-  [[ ! $(ps -p ${procpid} | grep $(basename ${0})) == "" ]] && value=0 || value=1
+  [ ! "$(ps -p "${procpid}" | grep "$(basename "${0}")")" = "" ] && value=0 || value=1
   return ${value}
 }
 
@@ -38,20 +39,20 @@ function isrunning() {
 #    PARAMETERS:  the pid to put in the file, the filename to use as a lock
 #       RETURNS:  none
 #===============================================================================
-function createpidfile() {
+createpidfile() {
   mypid=${1}
   pidfile=${2}
   #Close stderr, don't overwrite existing file, shove my pid in the lock file.
-  $(exec 2>&-; set -o noclobber; echo "$mypid" > "$pidfile")
-  [[ ! -f "${pidfile}" ]] && exit #Lock file creation failed
-  procpid=$(<"${pidfile}")
-  [[ ${mypid} -ne ${procpid} ]] && {
+  (exec 2>&-; set -o noclobber; echo "$mypid" > "$pidfile")
+  [ ! -f "${pidfile}" ] && exit #Lock file creation failed
+  procpid=$(cat "${pidfile}")
+  [ "${mypid}" -ne "${procpid}" ] && {
     #I'm not the pid in the lock file
     # Is the process pid in the lockfile still running?
     isrunning "${pidfile}" || {
       # No.  Kill the pidfile and relaunch
       rm "${pidfile}"
-      $0 $@
+      "$0" "$@"
     }
     exit
   }
@@ -63,12 +64,12 @@ function createpidfile() {
 #    PARAMETERS:  none
 #       RETURNS:  path and filename
 #===============================================================================
-function pidfilename() {
+pidfilename() {
   myfile=$(basename "$0" .sh)
   whoiam=$(whoami)
   mypidfile="/tmp/${myfile}.pid"
-  [[ "$whoiam" == 'root' ]] && mypidfile="/var/run/$myfile.pid"
-  echo $mypidfile
+  [ "$whoiam" = 'root' ] && mypidfile="/var/run/$myfile.pid"
+  echo "$mypidfile"
 }
 
 #===  FUNCTION  ================================================================
@@ -77,52 +78,52 @@ function pidfilename() {
 #    PARAMETERS:  privoxy conf dir, list of urls
 #       RETURNS:  none
 #===============================================================================
-function doconvert() {
+doconvert() {
   privoxydir=$1
   urls=$2
-  for url in ${urls[@]}
+  for url in ${urls}
   do
-    file=${tempdir}/$(basename ${url})
-    actionfile=${file%\.*}.script.action
-    filterfile=${file%\.*}.script.filter
-    list=$(basename ${file%\.*})
+    file="${tempdir}/$(basename "${url}")"
+    actionfile="${file%\.*}.script.action"
+    filterfile="${file%\.*}.script.filter"
+    list="$(basename "${file%\.*}")"
 
     # clean up files
-    [[ -f "${file}" ]] && rm "${file}"
-    [[ -f "${actionfile}" ]] && rm "${actionfile}"
-    [[ -f "${filterfile}" ]] && rm "${filterfile}"
+    [ -f "${file}" ] && rm "${file}"
+    [ -f "${actionfile}" ] && rm "${actionfile}"
+    [ -f "${filterfile}" ] && rm "${filterfile}"
 
     echo "downloading ${url} ..."
-    wget -t 3 --no-check-certificate -O ${file} "${url}" >${tempdir}/wget-${url//\//#}.log 2>&1
+    curl -k "${url}" > "${file}"
 
-    [ "$(grep -E '^.*\[Adblock.*\].*$' ${file})" == "" ] && echo "The list recieved from ${url} isn't an AdblockPlus list. Skipped" && continue
+    [ "$(grep -E '^.*\[Adblock.*\].*$' "${file}")" = "" ] && echo "The list recieved from ${url} isn't an AdblockPlus list. Skipped" && continue
 
     echo "Creating actionfile for ${list} ..."
-    echo -e "{ +block{${list}} }" > ${actionfile}
-    $sedcmd '/^!.*/d;1,1 d;/^@@.*/d;/\$.*/d;/#/d;s/\./\\./g;s/\?/\\?/g;s/\*/.*/g;s/(/\\(/g;s/)/\\)/g;s/\[/\\[/g;s/\]/\\]/g;s/\^/[\/\&:\?=_]/g;s/^||/\./g;s/^|/^/g;s/|$/\$/g;/|/d' ${file} >> ${actionfile}
+    printf '{ +block{%s} }\n' "${list}" > "${actionfile}"
+    $sedcmd '/^!.*/d;1,1 d;/^@@.*/d;/\$.*/d;/#/d;s/\./\\./g;s/\?/\\?/g;s/\*/.*/g;s/(/\\(/g;s/)/\\)/g;s/\[/\\[/g;s/\]/\\]/g;s/\^/[\/\&:\?=_]/g;s/^||/\./g;s/^|/^/g;s/|$/\$/g;/|/d' "${file}" >> "${actionfile}"
 
     echo "... creating filterfile for ${list} ..."
-    echo "FILTER: ${list} Tag filter of ${list}" > ${filterfile}
-    $sedcmd '/^#/!d;s/^##//g;s/^#\(.*\)\[.*\]\[.*\]*/s@<([a-zA-Z0-9]+)\\s+.*id=.?\1.*>.*<\/\\1>@@g/g;s/^#\(.*\)/s@<([a-zA-Z0-9]+)\\s+.*id=.?\1.*>.*<\/\\1>@@g/g;s/^\.\(.*\)/s@<([a-zA-Z0-9]+)\\s+.*class=.?\1.*>.*<\/\\1>@@g/g;s/^a\[\(.*\)\]/s@<a.*\1.*>.*<\/a>@@g/g;s/^\([a-zA-Z0-9]*\)\.\(.*\)\[.*\]\[.*\]*/s@<\1.*class=.?\2.*>.*<\/\1>@@g/g;s/^\([a-zA-Z0-9]*\)#\(.*\):.*[:[^:]]*[^:]*/s@<\1.*id=.?\2.*>.*<\/\1>@@g/g;s/^\([a-zA-Z0-9]*\)#\(.*\)/s@<\1.*id=.?\2.*>.*<\/\1>@@g/g;s/^\[\([a-zA-Z]*\).=\(.*\)\]/s@\1^=\2>@@g/g;s/\^/[\/\&:\?=_]/g;s/\.\([a-zA-Z0-9]\)/\\.\1/g' ${file} >> ${filterfile}
+    echo "FILTER: ${list} Tag filter of ${list}" > "${filterfile}"
+    $sedcmd '/^#/!d;s/^##//g;s/^#\(.*\)\[.*\]\[.*\]*/s@<([a-zA-Z0-9]+)\\s+.*id=.?\1.*>.*<\/\\1>@@g/g;s/^#\(.*\)/s@<([a-zA-Z0-9]+)\\s+.*id=.?\1.*>.*<\/\\1>@@g/g;s/^\.\(.*\)/s@<([a-zA-Z0-9]+)\\s+.*class=.?\1.*>.*<\/\\1>@@g/g;s/^a\[\(.*\)\]/s@<a.*\1.*>.*<\/a>@@g/g;s/^\([a-zA-Z0-9]*\)\.\(.*\)\[.*\]\[.*\]*/s@<\1.*class=.?\2.*>.*<\/\1>@@g/g;s/^\([a-zA-Z0-9]*\)#\(.*\):.*[:[^:]]*[^:]*/s@<\1.*id=.?\2.*>.*<\/\1>@@g/g;s/^\([a-zA-Z0-9]*\)#\(.*\)/s@<\1.*id=.?\2.*>.*<\/\1>@@g/g;s/^\[\([a-zA-Z]*\).=\(.*\)\]/s@\1^=\2>@@g/g;s/\^/[\/\&:\?=_]/g;s/\.\([a-zA-Z0-9]\)/\\.\1/g' "${file}" >> "${filterfile}"
     echo "... filterfile created - adding filterfile to actionfile ..."
-    echo "{ +filter{${list}} }" >> ${actionfile}
-    echo "*" >> ${actionfile}
+    echo "{ +filter{${list}} }" >> "${actionfile}"
+    echo "*" >> "${actionfile}"
     echo "... filterfile added ..."
 
     echo "... creating and adding whitlist for urls ..."
-    echo "{ -block }" >> ${actionfile}
-    $sedcmd '/^@@.*/!d;s/^@@//g;/\$.*/d;/#/d;s/\./\\./g;s/\?/\\?/g;s/\*/.*/g;s/(/\\(/g;s/)/\\)/g;s/\[/\\[/g;s/\]/\\]/g;s/\^/[\/\&:\?=_]/g;s/^||/\./g;s/^|/^/g;s/|$/\$/g;/|/d' ${file} >> ${actionfile}
+    echo "{ -block }" >> "${actionfile}"
+    $sedcmd '/^@@.*/!d;s/^@@//g;/\$.*/d;/#/d;s/\./\\./g;s/\?/\\?/g;s/\*/.*/g;s/(/\\(/g;s/)/\\)/g;s/\[/\\[/g;s/\]/\\]/g;s/\^/[\/\&:\?=_]/g;s/^||/\./g;s/^|/^/g;s/|$/\$/g;/|/d' "${file}" >> "${actionfile}"
     echo "... created and added whitelist - creating and adding image handler ..."
 
-    echo "{ -block +handle-as-image }" >> ${actionfile}
-    $sedcmd '/^@@.*/!d;s/^@@//g;/\$.*image.*/!d;s/\$.*image.*//g;/#/d;s/\./\\./g;s/\?/\\?/g;s/\*/.*/g;s/(/\\(/g;s/)/\\)/g;s/\[/\\[/g;s/\]/\\]/g;s/\^/[\/\&:\?=_]/g;s/^||/\./g;s/^|/^/g;s/|$/\$/g;/|/d' ${file} >> ${actionfile}
+    echo "{ -block +handle-as-image }" >> "${actionfile}"
+    $sedcmd '/^@@.*/!d;s/^@@//g;/\$.*image.*/!d;s/\$.*image.*//g;/#/d;s/\./\\./g;s/\?/\\?/g;s/\*/.*/g;s/(/\\(/g;s/)/\\)/g;s/\[/\\[/g;s/\]/\\]/g;s/\^/[\/\&:\?=_]/g;s/^||/\./g;s/^|/^/g;s/|$/\$/g;/|/d' "${file}" >> "${actionfile}"
     echo "... created and added image handler ..."
     echo "... created actionfile for ${list}."
 
-    actionfiledest="${privoxydir}/$(basename ${actionfile})"
+    actionfiledest="${privoxydir}/$(basename "${actionfile}")"
     echo "... copying ${actionfile} to ${actionfiledest}"
     cp "${actionfile}" "${actionfiledest}"
-    filterfiledest="${privoxydir}/$(basename ${filterfile})"
+    filterfiledest="${privoxydir}/$(basename "${filterfile}")"
     echo "... copying ${filterfile} to ${filterfiledest}"
     cp "${filterfile}" "${filterfiledest}"
   done
@@ -134,8 +135,9 @@ function doconvert() {
 #    PARAMETERS:  none
 #       RETURNS:  none
 #===============================================================================
-function usage() {
-  echo "Usage: ${0} [-d] [-p <privoxy config dir>] [-u <url1>] [-u <url2>]..."
+usage() {
+# echo "Usage: ${0} [-d] [-p <privoxy config dir>] [-u <url1>] [-u <url2>]..."
+  echo "Usage: ${0} [-p <privoxy config dir>] [-u <url1>] [-u <url2>]..."
   exit 1
 }
 
@@ -145,55 +147,55 @@ function usage() {
 #    PARAMETERS:  none
 #       RETURNS:  none
 #===============================================================================
-function main() {
+main() {
   pidfile="$(pidfilename)"
 
   tempfile="$(mktemp -t j.XXX)"
-  tempdir="$(dirname $tempfile)"
-  rm ${tempfile}
+  tempdir="$(dirname "${tempfile}")"
+  rm "${tempfile}"
 
   isrunning "${pidfile}" && {
-    echo "$(basename ${0}) is already running"
+    echo "$(basename "${0}") is already running"
     exit 1
   }
 
   createpidfile $$ "${pidfile}"
   trap 'cleanup' INT TERM EXIT
-  debug="false"
-  trap 'logger -t $0 -i -- $USER : $BASH_COMMAND' ERR  #log errors regardless
+# debug="false"
+# trap 'logger -t $0 -i -- $USER : $BASH_COMMAND' ERR  #log errors regardless
 
   privoxydir=$defaultprivoxydir
-  urls=( "${defaulturls[@]}" )
+  urls="${defaulturl}"
   while getopts "dp:u:" opt; do
     case "${opt}" in
       p)
         privoxydir=${OPTARG}
         ;;
       u)
-        urls+=("${OPTARG}")
+        urls=$(printf '%s\n%s' "${urls}" "${OPTARG}")
         ;;
-      d)
-        debug="true"
-        ;;
+#     d)
+#       debug="true"
+#       ;;
       *)
         usage
         ;;
       :)
-        echo "Option -"$OPTARG" requires an arguemnt." >&2
+        echo "Option -${OPTARG} requires an argument." >&2
         usage
         ;;
     esac
   done
 
-  [[ "$debug" == "true" ]] && trap 'logger -t $0 -i -- $USER : $BASH_COMMAND' DEBUG #syslog everything if we're debugging
-  [[ ! -d "$privoxydir" ]] && usage
-  [[ "${#urls[@]}" -eq "0" ]] && usage
+# [ "${debug}" = "true" ] && trap 'logger -t $0 -i -- $USER : $BASH_COMMAND' DEBUG #syslog everything if we're debugging
+  [ ! -d "${privoxydir}" ] && usage
+  [ "${urls}" = "" ] && usage
 
   # perform the operation
-  doconvert $privoxydir $urls
+  doconvert "$privoxydir" "$urls"
 }
 
-main $@
+main "$@"
 
 exit 0
 
