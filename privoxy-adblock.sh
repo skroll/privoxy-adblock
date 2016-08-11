@@ -94,7 +94,14 @@ doconvert() {
     [ -f "${filterfile}" ] && rm "${filterfile}"
 
     echo "downloading ${url} ..."
-    curl -k "${url}" > "${file}"
+    if command -v curl >/dev/null; then
+        curl -k "${url}" > "${file}"
+    elif command -v wget >/dev/null; then
+        wget -t 3 --no-check-certificate -O "${file}" "${url}"
+    else
+        echo "No curl or wget" 1>&2
+        exit 255
+    fi
 
     [ "$(grep -E '^.*\[Adblock.*\].*$' "${file}")" = "" ] && echo "The list recieved from ${url} isn't an AdblockPlus list. Skipped" && continue
 
